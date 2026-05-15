@@ -30,21 +30,23 @@ for router in [auth.router, employees.router, feedback.router, criteria.router, 
 
 @app.on_event("startup")
 async def on_startup():
-    import app.models  # ensure all models registered
-    from app.db.session import engine
-    from app.db.base import Base
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    # Seed demo data if DB is empty
-    from app.db.session import AsyncSessionLocal
-    from app.models.user import User
-    from sqlalchemy import select
-    async with AsyncSessionLocal() as db:
-        result = await db.execute(select(User).limit(1))
-        if not result.scalar_one_or_none():
-            from app.scripts.seed import run_seed
-            await run_seed(db)
-            log.info("seed_completed")
+    try:
+        import app.models
+        from app.db.session import engine
+        from app.db.base import Base
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        from app.db.session import AsyncSessionLocal
+        from app.models.user import User
+        from sqlalchemy import select
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(select(User).limit(1))
+            if not result.scalar_one_or_none():
+                from app.scripts.seed import run_seed
+                await run_seed(db)
+                log.info("seed_completed")
+    except Exception as e:
+        log.error("startup_db_error", error=str(e))
 
 
 @app.get("/api/health")
